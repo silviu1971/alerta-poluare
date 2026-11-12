@@ -1,0 +1,7 @@
+services:
+  - type: cron
+    name: alerta-poluare
+    env: python
+    schedule: "0 */2 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python telegram_alerta.py
