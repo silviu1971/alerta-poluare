@@ -4,4 +4,4 @@ services:
     env: python
     schedule: "0 */2 * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python telegram_alerta.py
+    startCommand: python telegram_alerta-1.py
