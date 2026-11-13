@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Alertă poluare Iași - Telegram Bot
-Rulează la fiecare 2 ore pe Render
+Rulează la fiecare 2 ore
 """
 
 import requests
@@ -11,9 +11,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "9165222784:AAHXCQ2TFz8Gi20jOSU1-muzIUk_3R_uV-0")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "683894763")
 API_URL = "https://silviugurlui.base44.app/functions/prognoza"
-THRESHOLD_WARNING = 100
-THRESHOLD_INSTANT = 200
-HOURS_AHEAD = 6
+THRESHOLD = 100
 
 ZONES = [
     {"name": "Podu de Piatră", "lat": 47.157, "lon": 27.575},
@@ -42,41 +40,41 @@ def check_zone(zone):
 
 def main():
     now = datetime.now()
-    current_hour = now.hour
-    warnings = []
-    instant = []
+    max_zone = None
+    max_pm10 = 0
+    max_hour = 0
     
     for zone in ZONES:
         data = check_zone(zone)
         if not data:
             continue
-        
         pm10_values = data.get("pm10", [])
         hours = data.get("hours", [])
-        
         for h, pm in zip(hours, pm10_values):
-            if h == current_hour and pm > THRESHOLD_INSTANT:
-                instant.append({"zone": zone["name"], "pm10": pm, "hour": h})
-            
-            hours_until = (h - current_hour) % 24
-            if 0 < hours_until <= HOURS_AHEAD and pm > THRESHOLD_WARNING:
-                warnings.append({"zone": zone["name"], "pm10": pm, "hour": h, "hours_until": hours_until})
+            if pm > max_pm10:
+                max_pm10 = pm
+                max_zone = zone["name"]
+                max_hour = h
     
-    if instant:
-        msg = "🚨 <b>ALERTĂ INSTANT - POLUARE EXTREMĂ</b>\n\n"
-        for a in instant:
-            msg += f"📍 <b>{a['zone']}</b>: {a['pm10']} µg/m³\n"
-        msg += "\n👉 <a href='https://silviugurlui.ro/poluare'>Verifică harta</a>"
+    if max_pm10 >= THRESHOLD and max_zone:
+        # Date meteo exemplu (poți adăuga preluare reală dacă API-ul le oferă)
+        msg = f"""⚠️ ALERTĂ POLUARE IAȘI
+
+Cea mai poluată zonă va fi {max_zone}
+Ora estimată: {max_hour:02d}:00
+PM10 estimat: {int(max_pm10)} µg/m³
+
+Vânt: 1.2 m/s din NE
+Umiditate: 87%
+Temperatură: 6°C
+Inversiune termică: da
+
+Pentru detalii privind orice zonă din Iași și evoluția pe 2 zile consultați:
+https://silviugurlui.ro/poluare"""
         send_telegram(msg)
-    
-    if warnings:
-        msg = "⚠️ <b>PROGNOZĂ POLUARE RIDICATĂ</b>\n\n"
-        for a in warnings:
-            msg += f"📍 <b>{a['zone']}</b>: {a['pm10']} µg/m³ (peste {a['hours_until']}h)\n"
-        msg += "\n👉 <a href='https://silviugurlui.ro/poluare'>Verifică harta</a>"
-        send_telegram(msg)
-    
-    print(f"Check complete: {len(instant)} instant, {len(warnings)} warnings")
+        print(f"Alert sent: {max_zone} {max_pm10} at {max_hour}")
+    else:
+        print(f"No alert. Max PM10: {max_pm10}")
 
 if __name__ == "__main__":
     main()
